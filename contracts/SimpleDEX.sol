@@ -8,7 +8,7 @@ contract SimpleDEX {
     IERC20 public tokenB;
     uint256 public reserveA;
     uint256 public reserveB;
-    uint256 public constant FEE_BPS = 30; // 0.3%
+    uint256 public constant FEE_BPS = 30;
     uint256 public constant BASIS_POINTS = 10000;
     uint256 public totalLiquidity;
 
@@ -20,9 +20,8 @@ contract SimpleDEX {
 
     constructor(address _tokenA, address _tokenB) {
         require(_tokenA != _tokenB, "Same token");
-        (tokenA, tokenB) = _tokenA < _tokenB
-            ? (IERC20(_tokenA), IERC20(_tokenB))
-            : (IERC20(_tokenB), IERC20(_tokenA));
+        tokenA = IERC20(_tokenA);
+        tokenB = IERC20(_tokenB);
     }
 
     function addLiquidity(uint256 amountA, uint256 amountB) external {
@@ -97,7 +96,7 @@ contract SimpleDEX {
         tokenIn.transferFrom(msg.sender, address(this), amountIn);
         tokenOut.transfer(msg.sender, amountOut);
 
-        if (tokenIn == tokenA) {
+        if (address(tokenIn) == address(tokenA)) {
             reserveA += amountIn;
             reserveB -= amountOut;
         } else {

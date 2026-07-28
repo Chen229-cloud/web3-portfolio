@@ -3,70 +3,76 @@ const fs = require("fs");
 const path = require("path");
 
 async function main() {
-  console.log("Deploying contracts to:", hre.network.name);
-  console.log("Deployer:", (await hre.ethers.getSigners())[0].address);
+  console.log("Deploying to:", hre.network.name);
+  const deployer = (await hre.ethers.getSigners())[0];
+  console.log("Deployer:", deployer.address);
   console.log("");
 
   const deployments = {};
 
-  // Counter
   const Counter = await hre.ethers.getContractFactory("Counter");
   const counter = await Counter.deploy();
   await counter.waitForDeployment();
   deployments.counter = await counter.getAddress();
-  console.log("Counter     deployed:", deployments.counter);
+  console.log("Counter     :", deployments.counter);
 
-  // ERC-20 Token
   const MyToken = await hre.ethers.getContractFactory("MyToken");
   const myToken = await MyToken.deploy("MyToken", "MTK", 1000000);
   await myToken.waitForDeployment();
   deployments.token = await myToken.getAddress();
-  console.log("MyToken     deployed:", deployments.token);
+  console.log("MyToken     :", deployments.token);
 
-  // NFT
   const MyNFT = await hre.ethers.getContractFactory("MyNFT");
   const myNFT = await MyNFT.deploy();
   await myNFT.waitForDeployment();
   deployments.nft = await myNFT.getAddress();
-  console.log("MyNFT       deployed:", deployments.nft);
+  console.log("MyNFT       :", deployments.nft);
 
-  // Faucet
   const Faucet = await hre.ethers.getContractFactory("Faucet");
   const faucet = await Faucet.deploy();
   await faucet.waitForDeployment();
   deployments.faucet = await faucet.getAddress();
-  console.log("Faucet      deployed:", deployments.faucet);
+  console.log("Faucet      :", deployments.faucet);
 
-  // DEX (needs token pair)
   const dexTokenA = await hre.ethers.getContractFactory("MyToken");
-  const tokenA = await dexTokenA.deploy("TokenA", "TKA", 1000000);
-  await tokenA.waitForDeployment();
-  const tokenB = await dexTokenA.deploy("TokenB", "TKB", 1000000);
-  await tokenB.waitForDeployment();
-
+  const tA = await dexTokenA.deploy("TokenA", "TKA", 1000000);
+  await tA.waitForDeployment();
+  const tB = await dexTokenA.deploy("TokenB", "TKB", 1000000);
+  await tB.waitForDeployment();
   const SimpleDEX = await hre.ethers.getContractFactory("SimpleDEX");
-  const dex = await SimpleDEX.deploy(await tokenA.getAddress(), await tokenB.getAddress());
+  const dex = await SimpleDEX.deploy(await tA.getAddress(), await tB.getAddress());
   await dex.waitForDeployment();
   deployments.dex = await dex.getAddress();
-  console.log("SimpleDEX   deployed:", deployments.dex);
-  console.log("  TokenA:", await tokenA.getAddress());
-  console.log("  TokenB:", await tokenB.getAddress());
+  console.log("SimpleDEX   :", deployments.dex);
 
-  const network = hre.network.name;
+  const Staking = await hre.ethers.getContractFactory("Staking");
+  const stk = await dexTokenA.deploy("Stake", "STK", 1000000);
+  await stk.waitForDeployment();
+  const rwd = await dexTokenA.deploy("Reward", "RWD", 1000000);
+  await rwd.waitForDeployment();
+  const staking = await Staking.deploy(
+    await stk.getAddress(), await rwd.getAddress(), hre.ethers.parseEther("1")
+  );
+  await staking.waitForDeployment();
+  deployments.staking = await staking.getAddress();
+  console.log("Staking     :", deployments.staking);
+
+  const SimpleDAO = await hre.ethers.getContractFactory("SimpleDAO");
+  const govToken = await dexTokenA.deploy("GovToken", "GOV", 1000000);
+  await govToken.waitForDeployment();
+  const dao = await SimpleDAO.deploy(await govToken.getAddress());
+  await dao.waitForDeployment();
+  deployments.dao = await dao.getAddress();
+  console.log("SimpleDAO   :", deployments.dao);
+
   const output = {
-    network,
-    deployer: (await hre.ethers.getSigners())[0].address,
+    network: hre.network.name,
+    deployer: deployer.address,
     timestamp: new Date().toISOString(),
     contracts: deployments,
   };
-
-  const outPath = path.join(__dirname, "..", "frontend", "deployments.json");
-  fs.writeFileSync(outPath, JSON.stringify(output, null, 2));
-  console.log("\nDeployment info saved to:", outPath);
-  console.log("\nAll 5 contracts deployed successfully!");
+  fs.writeFileSync(path.join(__dirname, "..", "frontend", "deployments.json"), JSON.stringify(output, null, 2));
+  console.log("\n✅ 7 contracts deployed!");
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main().catch(e => { console.error(e); process.exitCode = 1; });
