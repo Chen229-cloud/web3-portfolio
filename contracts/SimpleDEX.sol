@@ -4,8 +4,8 @@ pragma solidity ^0.8.27;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract SimpleDEX {
-    IERC20 public tokenA;
-    IERC20 public tokenB;
+    IERC20 public immutable tokenA;
+    IERC20 public immutable tokenB;
     uint256 public reserveA;
     uint256 public reserveB;
     uint256 public constant FEE_BPS = 30;
@@ -26,7 +26,6 @@ contract SimpleDEX {
 
     function addLiquidity(uint256 amountA, uint256 amountB) external {
         require(amountA > 0 && amountB > 0, "Zero amounts");
-
         tokenA.transferFrom(msg.sender, address(this), amountA);
         tokenB.transferFrom(msg.sender, address(this), amountB);
 
@@ -38,14 +37,12 @@ contract SimpleDEX {
             uint256 shareB = (amountB * totalLiquidity) / reserveB;
             mint = shareA < shareB ? shareA : shareB;
         }
-
         require(mint > 0, "Insufficient liquidity minted");
 
         reserveA += amountA;
         reserveB += amountB;
         totalLiquidity += mint;
         liquidity[msg.sender] += mint;
-
         emit LiquidityAdded(msg.sender, amountA, amountB, mint);
     }
 
@@ -63,7 +60,6 @@ contract SimpleDEX {
 
         tokenA.transfer(msg.sender, amountA);
         tokenB.transfer(msg.sender, amountB);
-
         emit LiquidityRemoved(msg.sender, amountA, amountB, lpTokens);
     }
 
@@ -77,9 +73,7 @@ contract SimpleDEX {
 
     function getSwapAmount(uint256 reserveIn, uint256 reserveOut, uint256 amountIn) public pure returns (uint256) {
         uint256 amountInWithFee = amountIn * (BASIS_POINTS - FEE_BPS);
-        uint256 numerator = amountInWithFee * reserveOut;
-        uint256 denominator = reserveIn * BASIS_POINTS + amountInWithFee;
-        return numerator / denominator;
+        return (amountInWithFee * reserveOut) / (reserveIn * BASIS_POINTS + amountInWithFee);
     }
 
     function getReserves() external view returns (uint256, uint256) {
@@ -103,7 +97,6 @@ contract SimpleDEX {
             reserveB += amountIn;
             reserveA -= amountOut;
         }
-
         emit Swapped(msg.sender, address(tokenIn), address(tokenOut), amountIn, amountOut);
     }
 

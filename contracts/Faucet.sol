@@ -2,7 +2,7 @@
 pragma solidity ^0.8.27;
 
 contract Faucet {
-    address public owner;
+    address public immutable owner;
     uint256 public constant DRIP_AMOUNT = 0.05 ether;
     uint256 public constant COOLDOWN = 1 hours;
     
@@ -22,24 +22,16 @@ contract Faucet {
     }
 
     function drip() external {
-        require(
-            block.timestamp >= lastDrip[msg.sender] + COOLDOWN,
-            "Cooldown not elapsed"
-        );
-        require(
-            address(this).balance >= DRIP_AMOUNT,
-            "Faucet empty"
-        );
+        require(block.timestamp >= lastDrip[msg.sender] + COOLDOWN, "Cooldown not elapsed");
+        require(address(this).balance >= DRIP_AMOUNT, "Faucet empty");
 
         lastDrip[msg.sender] = block.timestamp;
+        emit Drip(msg.sender, DRIP_AMOUNT, block.timestamp);  // CEI: event before transfer
         payable(msg.sender).transfer(DRIP_AMOUNT);
-        emit Drip(msg.sender, DRIP_AMOUNT, block.timestamp);
     }
 
     function timeUntilNextDrip(address user) external view returns (uint256) {
-        if (block.timestamp >= lastDrip[user] + COOLDOWN) {
-            return 0;
-        }
+        if (block.timestamp >= lastDrip[user] + COOLDOWN) return 0;
         return lastDrip[user] + COOLDOWN - block.timestamp;
     }
 
@@ -53,7 +45,7 @@ contract Faucet {
 
     function withdrawAll() external onlyOwner {
         uint256 balance = address(this).balance;
+        emit Withdrawn(owner, balance);  // CEI: event before transfer
         payable(owner).transfer(balance);
-        emit Withdrawn(owner, balance);
     }
 }
