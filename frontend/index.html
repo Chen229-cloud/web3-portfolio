@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Web3 dApp Portfolio</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d1117;color:#c9d1d9;min-height:100vh}
+.header{background:#161b22;border-bottom:1px solid #30363d;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.header h1{font-size:20px;color:#58a6ff}
+.header-right{display:flex;gap:8px;align-items:center}
+.network-badge{font-size:12px;padding:4px 10px;border-radius:12px;background:#1f6feb;color:#fff}
+.connect-btn{background:#238636;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px}
+.connect-btn:hover{background:#2ea043}
+.connect-btn.connected{background:#30363d}
+.main{max-width:960px;margin:0 auto;padding:24px}
+.info-bar{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:20px;font-size:13px;color:#8b949e;line-height:1.6}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:20px}
+.card h3{font-size:16px;margin-bottom:12px;color:#f0f6fc}
+.card .label{font-size:12px;color:#8b949e;margin-bottom:4px}
+.card .value{font-size:18px;color:#f0f6fc;font-weight:600;margin-bottom:12px;word-break:break-all}
+.card .btn{width:100%;padding:10px;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;transition:all .2s}
+.btn.primary{background:#238636;color:#fff}
+.btn.primary:hover:not(:disabled){background:#2ea043}
+.btn.secondary{background:#1f6feb;color:#fff;margin-top:8px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.card input{width:100%;padding:10px;border-radius:6px;border:1px solid #30363d;background:#0d1117;color:#c9d1d9;font-size:14px;margin-bottom:10px}
+.timer{font-size:12px;color:#d29922;margin-top:8px;text-align:center}
+.status{font-size:13px;padding:10px;border-radius:6px;margin-top:10px;display:none}
+.status.success{background:#033a16;color:#3fb950;border:1px solid #238636;display:block}
+.status.error{background:#3a0303;color:#f85149;border:1px solid #da3633;display:block}
+.tx-link{color:#58a6ff;font-size:12px;display:block;margin-top:6px}
+.nav{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.nav-btn{background:#21262d;color:#c9d1d9;border:1px solid #30363d;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px}
+.nav-btn.active{background:#1f6feb;border-color:#1f6feb;color:#fff}
+.section{display:none}
+.section.active{display:block}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🚀 Web3 Portfolio</h1>
+  <div class="header-right">
+    <span class="network-badge" id="networkBadge">Not Connected</span>
+    <button class="connect-btn" id="connectBtn">Connect Wallet</button>
+  </div>
+</div>
+<div class="main">
+  <div class="info-bar" id="infoBar">Loading contract addresses from deployments.json...</div>
+  <div class="nav" id="nav">
+    <button class="nav-btn active" data-tab="faucet">💧 Faucet</button>
+    <button class="nav-btn" data-tab="counter">🔢 Counter</button>
+    <button class="nav-btn" data-tab="token">🪙 Token</button>
+    <button class="nav-btn" data-tab="nft">🖼️ NFT</button>
+  </div>
+
+  <!-- Faucet -->
+  <div class="section active" id="section-faucet">
+    <div class="cards">
+      <div class="card">
+        <h3>💧 Testnet Faucet</h3>
+        <div class="label">Contract Address</div>
+        <div class="value" style="font-size:13px" id="faucetAddr">--</div>
+        <div class="label">Contract Balance</div>
+        <div class="value" id="faucetBalance">-- ETH</div>
+        <div class="label">Drip Amount</div><div class="value">0.05 ETH</div>
+        <div class="label">Cooldown</div><div class="value">1 hour</div>
+        <button class="btn primary" id="dripBtn" onclick="requestDrip()">Request 0.05 ETH</button>
+        <div class="timer" id="cooldownTimer"></div>
+        <div class="status" id="faucetStatus"></div>
+      </div>
+      <div class="card">
+        <h3>💰 Fund the Faucet</h3>
+        <div class="label">Your Balance</div>
+        <div class="value" id="yourBalance">-- ETH</div>
+        <input type="number" id="fundAmount" placeholder="Amount in ETH" step="0.01" min="0.01" value="0.1">
+        <button class="btn primary" onclick="fundFaucet()">Deposit ETH</button>
+        <div class="status" id="fundStatus"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Counter -->
+  <div class="section" id="section-counter">
+    <div class="cards">
+      <div class="card">
+        <h3>🔢 Counter</h3>
+        <div class="label">Contract Address</div>
+        <div class="value" style="font-size:13px" id="counterAddr">--</div>
+        <div class="label">Current Count</div>
+        <div class="value" id="counterValue">--</div>
+        <button class="btn primary" onclick="counterIncrement()">+1</button>
+        <button class="btn secondary" onclick="counterDecrement()">-1</button>
+        <button class="btn secondary" onclick="counterReset()" style="background:#da3633;margin-top:8px">Reset</button>
+        <div class="status" id="counterStatus"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Token -->
+  <div class="section" id="section-token">
+    <div class="cards">
+      <div class="card">
+        <h3>🪙 MyToken (MTK)</h3>
+        <div class="label">Contract Address</div>
+        <div class="value" style="font-size:13px" id="tokenAddr">--</div>
+        <div class="label">Your Balance</div>
+        <div class="value" id="tokenBalance">-- MTK</div>
+        <div class="label">Total Supply</div>
+        <div class="value" id="tokenSupply">-- MTK</div>
+        <input type="text" id="mintTo" placeholder="Recipient address (0x...)">
+        <input type="number" id="mintAmount" placeholder="Amount to mint" value="100">
+        <button class="btn primary" onclick="mintTokens()">Mint Tokens</button>
+        <div class="status" id="tokenStatus"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NFT -->
+  <div class="section" id="section-nft">
+    <div class="cards">
+      <div class="card">
+        <h3>🖼️ MyNFT Collection</h3>
+        <div class="label">Contract Address</div>
+        <div class="value" style="font-size:13px" id="nftAddr">--</div>
+        <div class="label">Total Minted</div>
+        <div class="value" id="nftTotalMinted">-- / 1000</div>
+        <div class="label">Mint Price</div>
+        <div class="value">0.01 ETH</div>
+        <button class="btn primary" onclick="mintNFT()">Mint NFT (0.01 ETH)</button>
+        <div class="status" id="nftStatus"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ABIS = {
+  faucet:  [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":["@{indexed=True; internalType=address; name=from; type=address}","@{indexed=False; internalType=uint256; name=amount; type=uint256}"],"name":"Deposited","type":"event"},{"anonymous":false,"inputs":["@{indexed=True; internalType=address; name=to; type=address}","@{indexed=False; internalType=uint256; name=amount; type=uint256}","@{indexed=False; internalType=uint256; name=timestamp; type=uint256}"],"name":"Drip","type":"event"},{"anonymous":false,"inputs":["@{indexed=True; internalType=address; name=to; type=address}","@{indexed=False; internalType=uint256; name=amount; type=uint256}"],"name":"Withdrawn","type":"event"},{"inputs":[],"name":"COOLDOWN","outputs":["@{internalType=uint256; name=; type=uint256}"],"stateMutability":"view","type":"function"},{"inputs":[],"name":"DRIP_AMOUNT","outputs":["@{internalType=uint256; name=; type=uint256}"],"stateMutability":"view","type":"function"},{"inputs":[],"name":"deposit","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"drip","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":["@{internalType=address; name=; type=address}"],"name":"lastDrip","outputs":["@{internalType=uint256; name=; type=uint256}"],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":["@{internalType=address; name=; type=address}"],"stateMutability":"view","type":"function"},{"inputs":["@{internalType=address; name=user; type=address}"],"name":"timeUntilNextDrip","outputs":["@{internalType=uint256; name=; type=uint256}"],"stateMutability":"view","type":"function"},{"inputs":[],"name":"withdrawAll","outputs":[],"stateMutability":"nonpayable","type":"function"},{"stateMutability":"payable","type":"receive"}],
+  counter: [{"anonymous":false,"inputs":["@{indexed=False; internalType=uint256; name=newCount; type=uint256}","@{indexed=True; internalType=address; name=changedBy; type=address}"],"name":"CountChanged","type":"event"},{"inputs":[],"name":"count","outputs":["@{internalType=uint256; name=; type=uint256}"],"stateMutability":"view","type":"function"},{"inputs":[],"name":"decrement","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"increment","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"reset","outputs":[],"stateMutability":"nonpayable","type":"function"}],
+  token:   [{"inputs":["@{internalType=string; name=name; type=string}","@{internalType=string; name=symbol; type=string}","@{internalType=uint256; name=initialSupply; type=uint256}"],"stateMutability":"nonpayable","type":"constructor"},{"inputs":["@{internalType=address; name=spender; type=address}","@{internalType=uint256; name=allowance; type=uint256}","@{internalType=uint256; name=needed; type=uint256}"],"name":"ERC20InsufficientAllowance","type":"error"},{"inputs":["@{internalType=address; name=sender; type=address}","@{internalType=uint256; name=balance; type=uint256}","@{internalType=uint256; name=needed; type=uint256}"],"name":"ERC20InsufficientBalance","type":"error"},{"inputs":["@{internalType=address; name=approver; type=address}"],"name":"ERC20InvalidApprover","type":"error"},{"inputs":["@{internalType=address; name=receiver; type=address}"],"name":"ERC20InvalidReceiver","type":"error"},{"inputs":["@{internalType=address; name=sender; type=address}"],"name":"ERC20InvalidSender","type":"error"},{"inputs":["@{internalType=address; name=spender; type=address}"],"name":"ERC20InvalidSpender","type":"error"},{"inputs":["@{internalType=address; name=owner; type=address}"],"name":"OwnableInvalidOwner","type":"error"},{"inputs":["@{internalType=address; name=account; type=address}"],"name":"OwnableUnauthorizedAccount","type":"error"},{"anonymous":false,"inputs":["@{indexed=True; internalType=address; name=owner; type=address}","@{indexed=True; internalType=address; name=spender; type=address}","@{indexed=False; internalType=uint256; name=value; type=uint256}"],"name":"Approval","type":"event"},{"anonymous":false,"inputs":["@{indexed=True; internalType=address; name=previousOwner; type=address}","@{indexed=True; internalType=address; name=newOwner; type=address}"],"name":"OwnershipTransferred","type":"event"},{"anonymous":false,"inputs":["@{indexed=True; internalType=address; name=from; type=address}","@{indexed=True; internalType=address; name=to; type=address}","@{indexed=False; internalType=uint256; name=value; type=uint256}"],"name":"Transfer","type":"event"},{"inputs":["@{internalType=address; name=owner; type=address}","@{internalType=address; name=spender; type=address}"],"name":"allowance","outputs":["@{internalType=uint256; name=; type=uint256}"],"stateMutability":"view","type":"function"},{"inputs":["@{internalType=address; name=spender; type=address}","@{internalType=uint256; name=value; type=uint256}"],"name":"approve","outputs":["@{internalType=bool; name=; type=bool}"],"stateMutability":"nonpayable","type":"function"},{"inputs":["@{internalType=address; name=account; type=address}"],"name":"balanceOf","outputs":["@{internalType=uint256; name=; type=uint256}"],"stateMutability":"view","type":"function"},{"inputs":[],"name":"decimals","outputs":["@{internalType=uint8; name=; type=uint8}"],"stateMutability":"view","type":"function"},{"inputs":["@{internalType=address; name=to; type=address}","@{internalType=uint256; name=amount; type=uint256}"],"name":"mint","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"name","outputs":["@{internalType=string; name=; type=string}"],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":["@{internalType=address; name=; type=address}"],"stateMutability":"view","type":"function"},{"inputs":[],"name":"renounceOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"symbol","outputs":["@{internalType=string; name=; type=string}"],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalSupply","outputs":["@{internalType=uint256; name=; type=uint256}"],"stateMutability":"view","type":"function"},{"inputs":["@{internalType=address; name=to; type=address}","@{internalType=uint256; name=value; type=uint256}"],"name":"transfer","outputs":["@{internalType=bool; name=; type=bool}"],"stateMutability":"nonpayable","type":"function"},{"inputs":["@{internalType=address; name=from; type=address}","@{internalType=address; name=to; type=address}","@{internalType=uint256; name=value; type=uint256}"],"name":"transferFrom","outputs":["@{internalType=bool; name=; type=bool}"],"stateMutability":"nonpayable","type":"function"},{"inputs":["@{internalType=address; name=newOwner; type=address}"],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"}],
+  nft:     [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"inputs":["@{internalType=address; name=sender; type=address}","@{internalType=uint256; name=tokenId; type=uint256}","@{internalType=address; name=owner; type=address}"],"name":"ERC721IncorrectOwner","type":"error"},{"inputs":["@{internalType=address; name=operator; type=address}","@{internalType=uint256; name=tokenId; type=uint256}"],"name":"ERC721InsufficientApproval","type":"error"},{"inputs":["@{internalType=address; name=approver; type=address}"],"name":"ERC721InvalidApprover","type":"error"},{"inputs":["@{internalType=address; name=operator; type=address}"],"name":"ERC721InvalidOperator","type":"error"},{"inputs":["@{internalType=address; name=owner; type=address}"],"name":"ERC721InvalidOwner","type":"error"},{"inputs":["@{internalType=address; name=receiver; type=address}"],"name":"ERC721InvalidReceiver","type":"error"},{"inputs":["@{internalType=address; name=sender; type=address}"],"name":"ERC721InvalidSender","type":"error"},{"inputs":["@{internalType=uint256; name=tokenId; type=uint256}"],"name":"ERC721NonexistentToken","type":"error"},{"inputs":["@{internalType=address; name=owner; type=address}"],"name":"OwnableInvalidOwner","type":"error"},{"inputs":["@{internalType=address; name=account; type=address}"],"name":"OwnableUnauthorizedAccount","type":"error"},{"anonymous":false,"inputs":["@{indexed=True; internalType=address; name=owner; type=address}","@{indexed=True; internalType=address; name=approved; type=address}","@{indexed=True; internalType=uint256; name=tokenId; type=uint256}"],"name":"Approval","type":"event"},{"anonymous":false,"inputs":["@{indexed=True; internalType=address; name=owner; type=address}","@{indexed=True; internalType=address; name=operator; type=address}","@{indexed=False; internalType=bool; name=approved; type=bool}"],"name":"ApprovalForAll","type":"event"},{"anonymous":false,"inputs":["@{indexed=True; internalType=address; name=previousOwner; type=address}","@{indexed=True; internalType=address; name=newOwner; type=address}"],"name":"OwnershipTransferred","type":"event"},{"anonymous":false,"inputs":["@{indexed=True; internalType=address; name=from; type=address}","@{indexed=True; internalType=address; name=to; type=address}","@{indexed=True; internalType=uint256; name=tokenId; type=uint256}"],"name":"Transfer","type":"event"},{"inputs":[],"name":"MAX_SUPPLY","outputs":["@{internalType=uint256; name=; type=uint256}"],"stateMutability":"view","type":"function"},{"inputs":[],"name":"MINT_PRICE","outputs":["@{internalType=uint256; name=; type=uint256}"],"stateMutability":"view","type":"function"},{"inputs":["@{internalType=address; name=to; type=address}","@{internalType=uint256; name=tokenId; type=uint256}"],"name":"approve","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":["@{internalType=address; name=owner; type=address}"],"name":"balanceOf","outputs":["@{internalType=uint256; name=; type=uint256}"],"stateMutability":"view","type":"function"},{"inputs":["@{internalType=uint256; name=tokenId; type=uint256}"],"name":"getApproved","outputs":["@{internalType=address; name=; type=address}"],"stateMutability":"view","type":"function"},{"inputs":["@{internalType=address; name=owner; type=address}","@{internalType=address; name=operator; type=address}"],"name":"isApprovedForAll","outputs":["@{internalType=bool; name=; type=bool}"],"stateMutability":"view","type":"function"},{"inputs":[],"name":"mint","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"name","outputs":["@{internalType=string; name=; type=string}"],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":["@{internalType=address; name=; type=address}"],"stateMutability":"view","type":"function"},{"inputs":["@{internalType=uint256; name=tokenId; type=uint256}"],"name":"ownerOf","outputs":["@{internalType=address; name=; type=address}"],"stateMutability":"view","type":"function"},{"inputs":[],"name":"renounceOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":["@{internalType=address; name=from; type=address}","@{internalType=address; name=to; type=address}","@{internalType=uint256; name=tokenId; type=uint256}"],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":["@{internalType=address; name=from; type=address}","@{internalType=address; name=to; type=address}","@{internalType=uint256; name=tokenId; type=uint256}","@{internalType=bytes; name=data; type=bytes}"],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":["@{internalType=address; name=operator; type=address}","@{internalType=bool; name=approved; type=bool}"],"name":"setApprovalForAll","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":["@{internalType=bytes4; name=interfaceId; type=bytes4}"],"name":"supportsInterface","outputs":["@{internalType=bool; name=; type=bool}"],"stateMutability":"view","type":"function"},{"inputs":[],"name":"symbol","outputs":["@{internalType=string; name=; type=string}"],"stateMutability":"view","type":"function"},{"inputs":["@{internalType=uint256; name=tokenId; type=uint256}"],"name":"tokenURI","outputs":["@{internalType=string; name=; type=string}"],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalMinted","outputs":["@{internalType=uint256; name=; type=uint256}"],"stateMutability":"view","type":"function"},{"inputs":["@{internalType=address; name=from; type=address}","@{internalType=address; name=to; type=address}","@{internalType=uint256; name=tokenId; type=uint256}"],"name":"transferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":["@{internalType=address; name=newOwner; type=address}"],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"}],
+};
+
+let ADDRS = {};
+let signer, provider;
+
+window.addEventListener('load', async () => {
+  try {
+    const resp = await fetch('deployments.json');
+    const data = await resp.json();
+    ADDRS = data.contracts;
+    const net = data.network === 'hardhat' ? 'Hardhat Local' : data.network;
+    document.getElementById('infoBar').innerHTML =
+      '<b>Network:</b> ' + net + ' &nbsp;|&nbsp; <b>Deployer:</b> ' + data.deployer.slice(0,10)+'... &nbsp;|&nbsp; <b>Deployed:</b> ' + new Date(data.timestamp).toLocaleString() +
+      '<br><b>Counter:</b> ' + ADDRS.counter + ' &nbsp;|&nbsp; <b>Token:</b> ' + ADDRS.token + ' &nbsp;|&nbsp; <b>NFT:</b> ' + ADDRS.nft + ' &nbsp;|&nbsp; <b>Faucet:</b> ' + ADDRS.faucet;
+    document.getElementById('faucetAddr').textContent = ADDRS.faucet;
+    document.getElementById('counterAddr').textContent = ADDRS.counter;
+    document.getElementById('tokenAddr').textContent = ADDRS.token;
+    document.getElementById('nftAddr').textContent = ADDRS.nft;
+  } catch(e) {
+    document.getElementById('infoBar').innerHTML = '❌ Cannot load deployments.json. Run deploy script first.<br>Error: ' + e.message;
+  }
+  document.querySelectorAll('.nav-btn').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+});
+
+document.getElementById('connectBtn').addEventListener('click', connectWallet);
+
+async function connectWallet() {
+  if (!window.ethereum) return alert('Please install MetaMask!');
+  try {
+    provider = new ethers.BrowserProvider(window.ethereum);
+    const net = await provider.getNetwork();
+    document.getElementById('networkBadge').textContent = net.name.toUpperCase();
+    await provider.send("eth_requestAccounts", []);
+    signer = await provider.getSigner();
+    const addr = await signer.getAddress();
+    document.getElementById('connectBtn').textContent = addr.slice(0,6)+'...'+addr.slice(-4);
+    document.getElementById('connectBtn').classList.add('connected');
+    refreshAll();
+    startCooldownCheck();
+  } catch(e) { alert('Connection failed: ' + e.message); }
+}
+
+function switchTab(t) {
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelector('[data-tab="'+t+'"]').classList.add('active');
+  document.getElementById('section-'+t).classList.add('active');
+  if(t==='faucet')refreshFaucet();
+  if(t==='counter')refreshCounter();
+  if(t==='token')refreshToken();
+  if(t==='nft')refreshNFT();
+}
+
+async function refreshAll() {
+  if(!provider||!signer)return;
+  const b = await provider.getBalance(await signer.getAddress());
+  document.getElementById('yourBalance').textContent = ethers.formatEther(b)+' ETH';
+  refreshFaucet();refreshCounter();refreshToken();refreshNFT();
+}
+
+async function refreshFaucet() {
+  if(!provider)return;
+  document.getElementById('faucetBalance').textContent = ethers.formatEther(await provider.getBalance(ADDRS.faucet))+' ETH';
+}
+
+async function requestDrip() {
+  if(!signer)return;
+  const c=new ethers.Contract(ADDRS.faucet,ABIS.faucet,signer);
+  const s=document.getElementById('faucetStatus');
+  try{s.className='status';s.textContent='Requesting...';const tx=await c.drip();s.textContent='Tx: '+tx.hash+' ...waiting';await tx.wait();s.className='status success';s.innerHTML='✅ Received 0.05 ETH! <a class=tx-link href=#>Tx: '+tx.hash.slice(0,10)+'...</a>';refreshAll()}
+  catch(e){s.className='status error';s.textContent='❌ '+(e.reason||e.message)}
+}
+
+async function fundFaucet() {
+  if(!signer)return;
+  const amt=document.getElementById('fundAmount').value;
+  const c=new ethers.Contract(ADDRS.faucet,ABIS.faucet,signer);
+  const s=document.getElementById('fundStatus');
+  try{s.className='status';s.textContent='Depositing...';const tx=await c.deposit({value:ethers.parseEther(amt)});await tx.wait();s.className='status success';s.textContent='✅ Deposited '+amt+' ETH!';refreshAll()}
+  catch(e){s.className='status error';s.textContent='❌ '+(e.reason||e.message)}
+}
+
+async function startCooldownCheck() {
+  if(!signer)return;
+  const c=new ethers.Contract(ADDRS.faucet,ABIS.faucet,signer);
+  const addr=await signer.getAddress();
+  setInterval(async()=>{try{const r=await c.timeUntilNextDrip(addr);const btn=document.getElementById('dripBtn');const t=document.getElementById('cooldownTimer');if(r>0n){btn.disabled=true;t.textContent='⏳ Next drip: '+Math.floor(Number(r)/60)+'m '+Number(r)%60+'s'}else{btn.disabled=false;t.textContent='✅ Ready!'}}catch(e){}},3000);
+}
+
+async function refreshCounter() {
+  if(!provider)return;
+  const c=new ethers.Contract(ADDRS.counter,ABIS.counter,provider);
+  document.getElementById('counterValue').textContent=(await c.count()).toString();
+}
+
+async function counterIncrement(){if(!signer)return;const c=new ethers.Contract(ADDRS.counter,ABIS.counter,signer);const s=document.getElementById('counterStatus');try{s.className='status';s.textContent='...';const tx=await c.increment();await tx.wait();s.className='status success';s.textContent='✅';refreshCounter()}catch(e){s.className='status error';s.textContent='❌ '+(e.reason||e.message)}}
+async function counterDecrement(){if(!signer)return;const c=new ethers.Contract(ADDRS.counter,ABIS.counter,signer);const s=document.getElementById('counterStatus');try{s.className='status';s.textContent='...';const tx=await c.decrement();await tx.wait();s.className='status success';s.textContent='✅';refreshCounter()}catch(e){s.className='status error';s.textContent='❌ '+(e.reason||e.message)}}
+async function counterReset(){if(!signer)return;const c=new ethers.Contract(ADDRS.counter,ABIS.counter,signer);const s=document.getElementById('counterStatus');try{s.className='status';s.textContent='...';const tx=await c.reset();await tx.wait();s.className='status success';s.textContent='✅';refreshCounter()}catch(e){s.className='status error';s.textContent='❌ '+(e.reason||e.message)}}
+
+async function refreshToken() {
+  if(!provider||!signer)return;
+  const c=new ethers.Contract(ADDRS.token,ABIS.token,provider);
+  const a=await signer.getAddress();
+  document.getElementById('tokenBalance').textContent=ethers.formatEther(await c.balanceOf(a))+' MTK';
+  document.getElementById('tokenSupply').textContent=ethers.formatEther(await c.totalSupply())+' MTK';
+}
+
+async function mintTokens() {
+  if(!signer)return;
+  const c=new ethers.Contract(ADDRS.token,ABIS.token,signer);
+  const to=document.getElementById('mintTo').value;
+  const amt=document.getElementById('mintAmount').value;
+  const s=document.getElementById('tokenStatus');
+  try{s.className='status';s.textContent='Minting...';const tx=await c.mint(to,ethers.parseEther(amt));await tx.wait();s.className='status success';s.textContent='✅ Minted '+amt+' MTK';refreshToken()}
+  catch(e){s.className='status error';s.textContent='❌ '+(e.reason||e.message)}
+}
+
+async function refreshNFT() {
+  if(!provider)return;
+  const c=new ethers.Contract(ADDRS.nft,ABIS.nft,provider);
+  document.getElementById('nftTotalMinted').textContent=(await c.totalMinted()).toString()+' / 1000';
+}
+
+async function mintNFT() {
+  if(!signer)return;
+  const c=new ethers.Contract(ADDRS.nft,ABIS.nft,signer);
+  const s=document.getElementById('nftStatus');
+  try{s.className='status';s.textContent='Minting...';const tx=await c.mint({value:ethers.parseEther('0.01')});await tx.wait();s.className='status success';s.textContent='✅ NFT minted!';refreshNFT()}
+  catch(e){s.className='status error';s.textContent='❌ '+(e.reason||e.message)}
+}
+</script>
+</body>
+</html>
